@@ -1,0 +1,42 @@
+name: Deploy Seguro
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+      
+      - name: Criar arquivo de variáveis de ambiente
+        run: |
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+
+      - name: Remover versões antigas de containerd
+        run: |
+          sudo apt-get remove -y containerd
+          sudo apt-get autoremove -y
+
+      - name: Instalar Docker e Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+          sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+      - name: Subir banco de dados com Docker-Compose
+        run: docker-compose up -d
+      
+      - name: Instalar dependências
+        run: npm install
+      
+      - name: Executar aplicação
+        run: node app.js
